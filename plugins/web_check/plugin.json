@@ -1,0 +1,6 @@
+{
+  "name": "web_check",
+  "version": "1.0.0",
+  "description": "Local-only HTTP security header and TLS certificate checks",
+  "entry_point": "plugin.py"
+}

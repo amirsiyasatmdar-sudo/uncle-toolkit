@@ -1,0 +1,5 @@
+{
+  "name": "port_scan",
+  "version": "1.0.0",
+  "description": "Bounded TCP port checks for IPv4/IPv6 loopback only"
+}
