@@ -1,0 +1,5 @@
+# Runtime core uses only the Python standard library.
+# Optional features:
+# psutil>=5.9       # process RSS measurement
+# dnspython>=2.6    # DNS TXT ownership verification
+# pytest>=8.0       # development/test dependency
