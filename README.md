@@ -1,120 +1,228 @@
-# Uncle Toolkit
+Uncle Toolkit
 
-**A modular, local-first system and security toolkit for Linux and Termux.**
+A modular, local-first system and security toolkit for Linux and Termux.
 
-> **Project status:** Initial repository setup. The application core and plugins are not implemented yet.
+Uncle Toolkit is a lightweight, modular Python toolkit designed for local system utilities, defensive security checks, and authorized administration.
 
-Uncle Toolkit is planned as a lightweight, extensible toolkit that runs on the user's own device. Its design prioritizes local processing, transparent behavior, conservative resource usage, and security-conscious defaults.
+The project emphasizes local execution, transparent behavior, conservative resource usage, and security-conscious defaults.
 
-## Project goals
+«Project status: The Python core and initial plugins are implemented. The local Web UI currently provides an early backend foundation and is not a complete dashboard. The project is still under development and has not reached its first stable release.»
 
-- **Local-first:** Process data on the user's device. No telemetry or external data transmission is intended by default.
-- **Lightweight:** Keep the Python core small and make optional dependencies optional.
-- **Modular:** Discover and run plugins through a documented plugin contract.
-- **Security-conscious:** Validate inputs, avoid shell command construction, and require authorization before testing non-local targets.
-- **Portable:** Support Linux and Termux, subject to documented platform limitations.
-- **Auditable:** Provide automated quality, security, and test checks for contributions.
+---
 
-## Planned capabilities
+Project Goals
 
-The roadmap currently includes:
+- Local-first: Keep processing on the user's device. No telemetry or external data transmission is intended by default.
+- Lightweight: Use Python's standard library wherever practical and keep third-party dependencies optional.
+- Modular: Organize functionality into independent plugins with a documented interface.
+- Security-conscious: Validate inputs, avoid unsafe shell command construction, and require authorization for non-local security checks.
+- Portable: Target Linux and Termux while documenting platform-specific limitations.
+- Auditable: Maintain tests, code-quality checks, and clear project documentation.
 
-- Telegram account/channel security checks for resources controlled by the user.
-- Local system and file-permission audits.
-- Conservative network diagnostics and authorized port checks.
-- Web response-header and TLS configuration checks for authorized targets.
-- A loopback-only local web interface.
+---
 
-These are planned capabilities, not claims that the features are already available.
+Current Features
 
-## Project status and roadmap
+The following components have been implemented:
 
-Development is planned in six gated phases:
+Core
 
-1. Repository setup and governance.
-2. Python core: CLI, resource manager, security validation, and plugin loader.
-3. Initial plugins: port scan, file audit, and web check.
-4. Local web interface using FastAPI.
-5. Multi-layer review automation and complete contributor documentation.
-6. Linux and Termux verification, followed by the `v1.0.0` release.
+- Command-line interface.
+- Plugin discovery and loading.
+- Resource management.
+- Input and security validation.
+- Configurable resource profiles.
+- Concurrency and rate-limit controls.
 
-Each phase will be tested and reviewed before the next phase begins. See [CHANGELOG.md](CHANGELOG.md) for released changes.
+Initial Plugins
 
-## Intended architecture
+- File Audit: Read-only file and permission auditing.
+- Port Scan: Conservative network and port checks within the tool's authorization rules.
+- Web Check: HTTP response-header and TLS configuration checks for permitted targets.
 
-```text
+Local Web UI
+
+- Minimal HTTP backend using Python's standard library.
+- Loopback-only binding by default ("127.0.0.1").
+- Basic request validation and security checks.
+- Health endpoint.
+
+The Web UI is an early backend foundation. It does not currently represent a complete web dashboard or user-management system.
+
+---
+
+Project Roadmap
+
+Development is organized into six phases:
+
+Phase| Description| Status
+1| Repository setup and governance| Completed
+2| Python core and resource management| Completed
+3| Initial audit plugins| Completed
+4| Local Web UI backend foundation| Implemented; limited functionality
+5| Security review, quality checks, and documentation| In progress
+6| Linux and Termux verification and "v1.0.0" release| Planned
+
+A completed implementation phase does not mean that the project has reached a stable release.
+
+For implementation history, see "CHANGELOG.md" (CHANGELOG.md).
+
+For Web UI details and limitations, see "docs/WEB_UI.md" (docs/WEB_UI.md).
+
+---
+
+Project Structure
+
+The main project components are organized as follows:
+
 uncle-toolkit/
 ├── core/
+│   ├── __init__.py
 │   ├── cli.py
 │   ├── plugin_loader.py
 │   ├── resource_manager.py
 │   └── security.py
 ├── plugins/
-│   ├── telegram_audit/
+│   ├── file_audit/
 │   ├── port_scan/
-│   ├── web_check/
-│   └── file_audit/
-├── web_ui/
-│   ├── backend/
-│   ├── templates/
-│   └── static/
+│   └── web_check/
+├── web/
+│   ├── app.py
+│   └── security.py
 ├── docs/
+│   └── WEB_UI.md
 ├── tests/
-└── .github/
-    └── workflows/
-```
+├── README.md
+├── CHANGELOG.md
+├── CONTRIBUTING.md
+├── CODE_OF_CONDUCT.md
+├── LICENSE
+├── requirements.txt
+└── pytest.ini
 
-The final structure may evolve through reviewed design decisions. Third-party plugins will use a documented `BasePlugin` contract and a `plugin.json` manifest. Private local plugins will be excluded from version control.
+The structure may evolve as the project develops.
 
-## Security design commitments
+Plugins are loaded as Python code. Only use plugins from sources you trust. Private local plugins and local data should not be committed to the public repository.
 
-The implementation is expected to follow these rules:
+---
 
-- Use `subprocess.run` with argument lists and `shell=False`; do not use `os.system` or `eval`.
-- Validate untrusted input on the server side.
-- Keep secrets out of source control; use environment-based configuration for any future secrets.
-- Bind the local web server to `127.0.0.1` by default.
-- Restrict network checks to localhost until target ownership or authorization has been verified. DNS TXT verification may be used as one ownership-verification mechanism.
-- Apply resource limits and rate limiting, including a constrained low-resource mode for Termux.
-- Keep optional or heavyweight dependencies out of the mandatory dependency set where practical.
-- Test security-sensitive behavior and document platform limitations.
+Installation
 
-A DNS TXT record is an ownership signal, not a substitute for legal authorization or a complete security assessment.
+Clone the repository:
 
-## Legal disclaimer
+git clone https://github.com/amirsiyasatmdar-sudo/uncle-toolkit.git
+cd uncle-toolkit
 
-Uncle Toolkit is intended for education, defensive security, and authorized administration of systems and accounts that you own or are explicitly permitted to assess.
+The core is designed to use Python's standard library and does not require mandatory third-party runtime packages.
 
-You are responsible for complying with applicable laws, contracts, platform terms, and organizational policies. Do not use this project to access, scan, disrupt, or test systems or accounts without permission. The maintainers do not authorize misuse and are not responsible for damage, loss, or legal consequences arising from use of the software.
+To run the test suite, install the development dependency if it is not already available:
 
-The software is provided **"AS IS"**, without warranty of any kind, to the maximum extent permitted by applicable law. See [LICENSE](LICENSE).
+python -m pip install pytest
 
-## Acceptable Use Policy
+Run the tests:
 
-By using or contributing to this project, you agree that you will not:
+python -m pytest -q
 
-1. Use it against systems, networks, services, or accounts without clear authorization.
-2. Attempt to bypass access controls, authentication, rate limits, or security safeguards.
-3. Use it to disrupt availability, collect data unlawfully, or invade another person's privacy.
-4. Add features designed to facilitate unauthorized access or conceal abusive activity.
-5. Misrepresent scan results or claim that a check guarantees a system is secure.
+See the phase-specific installation guides for additional setup and usage instructions:
 
-Maintainers may reject contributions that conflict with this policy. This policy does not replace applicable law or grant permission to test any target.
+- "Phase 2 — Core Installation" (PHASE2_INSTALL.md)
+- "Phase 3 — File Audit Installation" (PHASE3_FILE_AUDIT_INSTALL.md)
+- "Phase 3 — Port Scan Installation" (PHASE3_PORT_SCAN_INSTALL.md)
+- "Phase 3 — Web Check Installation" (PHASE3_WEB_CHECK_INSTALL.md)
 
-## Platform support
+---
 
-Linux and Termux are target platforms. Compatibility will be verified incrementally. Some checks may be unavailable or behave differently depending on Android, kernel, permissions, and installed system utilities. The project must report unsupported operations clearly rather than silently escalating privileges.
+Security Design
 
-## Development
+Uncle Toolkit follows these security principles:
 
-The repository is currently in its setup phase. Installation instructions and runnable commands will be added when the core and dependency policy are established. Do not assume the planned CLI or web interface exists yet.
+- Use subprocess argument lists and avoid shell command construction.
+- Do not use unsafe execution patterns such as "os.system", "eval", or "shell=True".
+- Validate untrusted input before processing it.
+- Keep secrets and private configuration out of source control.
+- Bind the local Web UI to "127.0.0.1" by default.
+- Apply conservative resource limits and rate limiting.
+- Keep optional dependencies out of the mandatory runtime dependency set where practical.
+- Test security-sensitive behavior and document known limitations.
+- Require appropriate authorization before assessing non-local systems.
 
-Before contributing, read [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+DNS TXT verification, when used, can provide evidence of domain control. It does not establish legal authorization to test a system and is not a complete security assessment.
 
-## Language and documentation
+Important Plugin Warning
 
-English is the primary project documentation language. Persian (`fa`) localization is planned. User-facing strings are intended to use locale JSON files as the project matures.
+Python plugins execute code within the permissions of the process that loads them. A plugin should therefore be treated as executable software, not as harmless configuration.
 
-## License
+Only install and load plugins from trusted sources.
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE).
+Web UI Limitations
+
+The local Web UI is not an authentication boundary. Binding to loopback and validating request headers do not prevent every other local process from connecting to the service.
+
+The current backend is minimal and should not be exposed to public networks.
+
+No security mechanism should be considered a guarantee that a system is completely secure.
+
+---
+
+Acceptable Use
+
+Uncle Toolkit is intended for:
+
+- Educational use.
+- Defensive security activities.
+- Local system administration.
+- Testing systems and accounts that you own or are explicitly authorized to assess.
+
+You must not use this project to:
+
+1. Access, scan, disrupt, or test systems without permission.
+2. Bypass authentication, access controls, rate limits, or security safeguards.
+3. Collect data unlawfully or invade another person's privacy.
+4. Develop or contribute features intended to facilitate unauthorized access.
+5. Misrepresent tool output or claim that a successful check guarantees security.
+
+Users are responsible for complying with applicable laws, contracts, platform terms, and organizational policies.
+
+---
+
+Platform Support
+
+The project targets:
+
+- Linux
+- Android through Termux
+
+Compatibility is verified incrementally. Behavior may vary depending on the Android version, Linux distribution, kernel, permissions, Python version, and installed system utilities.
+
+Unsupported operations should be reported clearly. The project does not intend to silently escalate privileges.
+
+---
+
+Development and Contributions
+
+Contributions, bug reports, documentation improvements, and security reviews are welcome.
+
+Before contributing:
+
+1. Read "CONTRIBUTING.md" (CONTRIBUTING.md).
+2. Read "CODE_OF_CONDUCT.md" (CODE_OF_CONDUCT.md).
+3. Review the existing project structure and security principles.
+4. Run the relevant tests before submitting changes.
+
+Contributions should preserve the project's local-first design and security-conscious defaults.
+
+---
+
+Documentation Language
+
+English is the primary language of the project documentation.
+
+Persian ("fa") localization is planned for future development. User-facing localization may be introduced through language-specific JSON files as the project evolves.
+
+---
+
+License
+
+Uncle Toolkit is distributed under the MIT License.
+
+See the "LICENSE" (LICENSE) file for the complete license text.
