@@ -1,0 +1,5 @@
+{
+  "name": "file_audit",
+  "version": "1.0.0",
+  "description": "Read-only audit of local file and directory permissions"
+}
