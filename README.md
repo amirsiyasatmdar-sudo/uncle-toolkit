@@ -2,7 +2,7 @@
 
 **A modular, local-first system and security toolkit for Linux and Termux.**
 
-> **Project status:** Initial repository setup. The application core and plugins are not implemented yet.
+> **Project status:** The core and initial plugins are implemented. The local Web UI backend is an early foundation, not a complete dashboard.
 
 Uncle Toolkit is planned as a lightweight, extensible toolkit that runs on the user's own device. Its design prioritizes local processing, transparent behavior, conservative resource usage, and security-conscious defaults.
 
@@ -34,34 +34,40 @@ Development is planned in six gated phases:
 1. Repository setup and governance.
 2. Python core: CLI, resource manager, security validation, and plugin loader.
 3. Initial plugins: port scan, file audit, and web check.
-4. Local web interface using FastAPI.
+4. Local web interface backend using Python's standard-library HTTP server.
 5. Multi-layer review automation and complete contributor documentation.
 6. Linux and Termux verification, followed by the `v1.0.0` release.
 
-Each phase will be tested and reviewed before the next phase begins. See [CHANGELOG.md](CHANGELOG.md) for released changes.
+Each phase will be tested and reviewed before the next phase begins. See [CHANGELOG.md](CHANGELOG.md) for released changes. See [docs/WEB_UI.md](docs/WEB_UI.md) for Web UI instructions and limitations.
 
 ## Intended architecture
 
 ```text
 uncle-toolkit/
 ├── core/
+│   ├── __init__.py
 │   ├── cli.py
 │   ├── plugin_loader.py
 │   ├── resource_manager.py
 │   └── security.py
 ├── plugins/
-│   ├── telegram_audit/
+│   ├── file_audit/
 │   ├── port_scan/
-│   ├── web_check/
-│   └── file_audit/
-├── web_ui/
-│   ├── backend/
-│   ├── templates/
-│   └── static/
+│   └── web_check/
+├── web/
+│   ├── __init__.py
+│   ├── app.py
+│   ├── routes.py
+│   ├── security.py
+│   └── tests/
 ├── docs/
 ├── tests/
-└── .github/
-    └── workflows/
+├── CHANGELOG.md
+├── CONTRIBUTING.md
+├── LICENSE
+├── README.md
+├── requirements.txt
+└── pytest.ini
 ```
 
 The final structure may evolve through reviewed design decisions. Third-party plugins will use a documented `BasePlugin` contract and a `plugin.json` manifest. Private local plugins will be excluded from version control.
@@ -107,7 +113,7 @@ Linux and Termux are target platforms. Compatibility will be verified incrementa
 
 ## Development
 
-The repository is currently in its setup phase. Installation instructions and runnable commands will be added when the core and dependency policy are established. Do not assume the planned CLI or web interface exists yet.
+The core, initial plugins, and local Web UI backend are under active development. See the phase-specific installation guides and [Web UI documentation](docs/WEB_UI.md) for current instructions. The Web UI is currently a minimal backend, not a complete dashboard.
 
 Before contributing, read [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
