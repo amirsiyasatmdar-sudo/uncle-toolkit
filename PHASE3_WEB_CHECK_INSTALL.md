@@ -21,11 +21,13 @@ python -m core.cli plugins --directory plugins
 
 ## Behavior
 - Sends one bounded GET request to a loopback service.
-- Timeout is mandatory and limited to 0.2–10 seconds.
+- Timeout is mandatory and limited to 0.2–10 seconds per connection.
+- For HTTPS, performs a separate TLS connection before the GET request to
+  verify the certificate and report expiry information when available.
+- The TLS check and GET request use separate timeout periods, so total
+  execution time may exceed the configured timeout.
 - Does not follow redirects; reports the `Location` header only.
 - Ignores proxy environment variables.
-- For HTTPS, performs standard certificate verification and reports expiry
-  information when the peer certificate is available.
 - Does not execute JavaScript, submit forms, modify data, or send telemetry.
 
 ## Limitations

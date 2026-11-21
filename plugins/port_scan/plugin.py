@@ -3,10 +3,12 @@
 This plugin never resolves DNS names, scans remote hosts, sends application
 payloads, or performs service/banner detection.
 """
+
 from __future__ import annotations
 
 import errno
 import ipaddress
+import math
 import socket
 import time
 from typing import Any
@@ -30,7 +32,9 @@ class Plugin(BasePlugin):
         return True
 
     @staticmethod
-    def _parse_host(host: str) -> tuple[ipaddress.IPv4Address | ipaddress.IPv6Address, int]:
+    def _parse_host(
+        host: str,
+    ) -> tuple[ipaddress.IPv4Address | ipaddress.IPv6Address, int]:
         if not isinstance(host, str) or len(host) > 64:
             raise ValueError("Host must be a literal loopback IP address")
         try:
@@ -78,8 +82,9 @@ class Plugin(BasePlugin):
         else:
             sockaddr = (address.compressed, port)
 
-        sock = socket.socket(family, socket.SOCK_STREAM)
+        sock = None
         try:
+            sock = socket.socket(family, socket.SOCK_STREAM)
             sock.settimeout(timeout)
             result = sock.connect_ex(sockaddr)
         except (OSError, TimeoutError) as exc:
@@ -87,7 +92,8 @@ class Plugin(BasePlugin):
             if code in {errno.ECONNREFUSED, getattr(errno, "WSAECONNREFUSED", -1)}:
                 status, error = "closed", None
             elif isinstance(exc, TimeoutError) or code in {
-                errno.ETIMEDOUT, getattr(errno, "WSAETIMEDOUT", -1)
+                errno.ETIMEDOUT,
+                getattr(errno, "WSAETIMEDOUT", -1),
             }:
                 status, error = "filtered", "timeout"
             else:
@@ -102,7 +108,11 @@ class Plugin(BasePlugin):
             else:
                 status, error = "unknown", f"socket_error_{result}"
         finally:
-            sock.close()
+            if sock is not None:
+                try:
+                    sock.close()
+                except OSError:
+                    pass
         elapsed_ms = round((time.monotonic() - started) * 1000, 2)
         return status, error, elapsed_ms
 
@@ -120,7 +130,7 @@ class Plugin(BasePlugin):
         if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
             raise ValueError("Timeout must be a number")
         timeout_value = float(timeout)
-        if not self.MIN_TIMEOUT <= timeout_value <= self.MAX_TIMEOUT:
+        if not math.isfinite(timeout_value) or not self.MIN_TIMEOUT <= timeout_value <= self.MAX_TIMEOUT:
             raise ValueError("Timeout must be between 0.1 and 1.0 seconds")
 
         started = time.monotonic()
@@ -129,13 +139,15 @@ class Plugin(BasePlugin):
             status, error, elapsed_ms = self._check_one(
                 address, family, port, timeout_value
             )
-            results.append({
-                "port": port,
-                "protocol": "tcp",
-                "status": status,
-                "response_time_ms": elapsed_ms,
-                "error": error,
-            })
+            results.append(
+                {
+                    "port": port,
+                    "protocol": "tcp",
+                    "status": status,
+                    "response_time_ms": elapsed_ms,
+                    "error": error,
+                }
+            )
 
         summary = {
             state: sum(1 for item in results if item["status"] == state)

@@ -6,10 +6,11 @@ This project values focused changes, clear documentation, security-conscious dev
 
 ## Before You Start
 
-1. Read the [README](README.md), including the Legal Disclaimer and Acceptable Use Policy.
-2. Review existing Issues and Pull Requests to avoid duplicate work.
-3. For substantial changes, open an Issue before implementation to discuss scope and design.
-4. Never include credentials, personal data, private plugin files, or information collected from systems without authorization.
+1. Read the [README](README.md), especially the Security and Acceptable Use section.
+2. Read the [Code of Conduct](CODE_OF_CONDUCT.md) and [Security Policy](SECURITY.md).
+3. Review existing Issues and Pull Requests to avoid duplicate work.
+4. For substantial changes, open an Issue before implementation to discuss scope and design.
+5. Never include credentials, personal data, private plugin files, or information collected from systems without authorization.
 
 ## Contribution Requirements
 
@@ -19,7 +20,7 @@ This project values focused changes, clear documentation, security-conscious dev
 - Add or update tests for changed behavior.
 - Update relevant documentation and `CHANGELOG.md` when appropriate.
 - Do not introduce mandatory dependencies without explaining their purpose, maintenance status, size, and security implications.
-- Obtain maintainer approval before adding a new runtime dependency.
+- Obtain maintainer approval before adding a new mandatory runtime dependency.
 - Do not introduce telemetry or undisclosed outbound data transmission.
 - Document and narrowly scope any proposed network behavior.
 - Do not weaken authorization checks, resource limits, or existing security protections.
@@ -32,10 +33,26 @@ This project values focused changes, clear documentation, security-conscious dev
 - Validate untrusted input on the server side.
 - Keep secrets in local environment configuration. Never commit `.env` files, credentials, or private keys.
 - Keep the Web UI bound to `127.0.0.1` by default.
-- Restrict network testing to localhost unless target ownership or explicit authorization has been established.
+- Preserve the current Port Scan and Web Check loopback-only restrictions. Any proposal to support non-loopback targets requires a separate design and security review; ownership proof alone is not authorization.
 - Do not automatically run the application with root privileges.
 - Avoid collecting, storing, or logging sensitive information.
 - Treat third-party plugins as trusted code only after reviewing their source and behavior.
+
+## Tests and CI
+
+Install the project and its test dependency in editable mode:
+
+```bash
+python -m pip install -e ".[test]"
+```
+
+Run the complete test suite:
+
+```bash
+python -m pytest tests web/tests -q
+```
+
+The current `.github/workflows/ci.yml` workflow runs on Ubuntu with Python 3.10–3.13. It installs the project with the `test` extra, runs `tests` and `web/tests`, and checks the CLI version and help output. Contributors should not describe a remote CI run as successful unless its result is visible and successful in GitHub Actions.
 
 ## Pull Request Process
 
@@ -51,20 +68,23 @@ This project values focused changes, clear documentation, security-conscious dev
    - Security implications.
 6. Address review feedback and update the Pull Request as needed.
 
-Changes must pass the repository's required checks and receive maintainer approval before merging. The project owner retains final merge approval.
-
-Contributors must not claim that a test, security check, or quality check passed unless it was actually executed successfully.
+The maintainer reviews contributions and retains final merge approval. Contributors must not claim that a test, security check, or quality check passed unless it was actually executed successfully.
 
 ## Review Expectations
 
-The planned CI review layers include:
+The following checks are part of the current CI workflow:
 
-- **Python:** Ruff, Bandit, pytest, coverage, and resource-manager integration checks.
-- **Web:** ESLint, HTMLHint, Prettier, and checks for unexpected external data transmission.
-- **Shell/Linux:** ShellCheck and checks for unsafe commands or automatic root execution.
+- **Python test matrix:** pytest on Python 3.10, 3.11, 3.12, and 3.13 on Ubuntu.
+- **CLI smoke checks:** version and help commands.
+
+The following are useful additional review layers but are **not currently enforced by the CI workflow**:
+
+- **Python static/security checks:** Ruff, Bandit, and coverage thresholds.
+- **Web checks:** ESLint, HTMLHint, Prettier, and checks for unexpected external data transmission.
+- **Shell/Linux checks:** ShellCheck and checks for unsafe commands or automatic root execution.
 - **Supply chain:** Dependency auditing and review of dependency changes.
 
-These checks are planned review layers. Their exact commands and enforcement requirements will be documented when the corresponding CI workflows are introduced.
+Do not describe a planned or optional check as an active CI requirement until the workflow is updated and the change is verified.
 
 ## Reporting Vulnerabilities
 

@@ -1,0 +1,82 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "uncle-toolkit"
+version = "0.1.0"
+description = "A modular, local-first system and defensive security toolkit for Linux and Termux."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = [
+    "linux",
+    "termux",
+    "system-tools",
+    "defensive-security",
+    "plugin-toolkit",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Security",
+]
+
+[project.optional-dependencies]
+process = ["psutil>=5.9"]
+dns = ["dnspython>=2.6"]
+test = ["pytest>=8.0"]
+all = [
+    "psutil>=5.9",
+    "dnspython>=2.6",
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["core*", "plugins*", "web*"]
+exclude = ["tests*", "web.tests*"]
+
+[tool.setuptools.package-data]
+plugins = ["*/plugin.json"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+src = ["."]
+exclude = [
+    ".git",
+    ".docs-import-staging",
+    "backups",
+    "build",
+    "dist",
+    ".venv",
+    "venv",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = []
+
+[tool.coverage.run]
+branch = true
+source = ["core", "plugins", "web"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false

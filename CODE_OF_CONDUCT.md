@@ -15,7 +15,7 @@ All participants are expected to:
 - Give actionable feedback and accept good-faith criticism.
 - Respect privacy and never publish another person's personal information without consent.
 - Keep participation inclusive and focused on the project.
-- Follow the project's Acceptable Use Policy and applicable laws.
+- Follow the project's Security and Acceptable Use requirements and applicable laws.
 - Act responsibly when interacting with other community members.
 
 ## Unacceptable Behavior

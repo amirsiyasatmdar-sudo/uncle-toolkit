@@ -18,9 +18,12 @@ python -m core.cli --version
 ```
 
 Security notes:
-- Low mode limits concurrent operations to one and applies a per-key rate limit.
+- The ResourceManager low profile configures a one-operation concurrency limit
+  and a per-key rate limit when its controls are used.
 - The 50 MiB memory threshold is advisory, not an OS-enforced hard limit.
-- Non-loopback targets require both DNS ownership verification and explicit
-  authorization. DNS proof alone is not legal authorization.
+- The `target_is_in_scope()` helper accepts non-loopback targets only when both
+  ownership verification and explicit authorization are confirmed. This helper
+  is available to callers; current Core, CLI, and plugin paths do not enforce
+  this check centrally. DNS proof alone is not legal authorization.
 - Loading plugins executes Python code; only load trusted local plugins.
 - No mandatory third-party runtime dependencies are required.

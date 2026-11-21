@@ -1,11 +1,14 @@
 """Lightweight, advisory resource controls."""
+
 from __future__ import annotations
 from collections import deque
 from contextlib import contextmanager
 from dataclasses import dataclass
+import math
 import threading
 import time
 from typing import Iterator
+
 
 @dataclass(frozen=True)
 class ResourceProfile:
@@ -14,16 +17,20 @@ class ResourceProfile:
     memory_limit_mb: int
     requests_per_minute: int
 
+
 PROFILES = {
     "low": ResourceProfile("low", 1, 50, 30),
     "normal": ResourceProfile("normal", 2, 150, 120),
 }
 
+
 class RateLimitExceeded(RuntimeError):
     """Raised when an operation exceeds its configured request rate."""
 
+
 class ResourceManager:
     """Thread-safe concurrency and per-key sliding-window rate limiter."""
+
     def __init__(self, profile: str = "low") -> None:
         try:
             self.profile = PROFILES[profile]
@@ -35,8 +42,23 @@ class ResourceManager:
 
     @contextmanager
     def operation(self, *, timeout: float | None = None) -> Iterator[None]:
-        acquired = (self._semaphore.acquire() if timeout is None
-                    else self._semaphore.acquire(timeout=timeout))
+        if timeout is None:
+            acquired = self._semaphore.acquire()
+        else:
+            if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
+                raise ValueError("Timeout must be a finite non-negative number or None")
+
+            try:
+                timeout_value = float(timeout)
+            except (OverflowError, TypeError, ValueError) as exc:
+                raise ValueError(
+                    "Timeout must be a finite non-negative number or None"
+                ) from exc
+
+            if not math.isfinite(timeout_value) or timeout_value < 0:
+                raise ValueError("Timeout must be a finite non-negative number or None")
+
+            acquired = self._semaphore.acquire(timeout=timeout_value)
         if not acquired:
             raise TimeoutError("Could not acquire a worker slot")
         try:
@@ -48,12 +70,21 @@ class ResourceManager:
         if not isinstance(key, str) or not key or len(key) > 128:
             raise ValueError("Rate-limit key must be 1-128 characters")
         now = time.monotonic()
+        cutoff = now - 60
+
         with self._lock:
+            for stored_key, history in list(self._requests.items()):
+                while history and history[0] <= cutoff:
+                    history.popleft()
+
+                if not history:
+                    del self._requests[stored_key]
+
             history = self._requests.setdefault(key, deque())
-            while history and history[0] <= now - 60:
-                history.popleft()
+
             if len(history) >= self.profile.requests_per_minute:
                 raise RateLimitExceeded(f"Rate limit exceeded for {key!r}")
+
             history.append(now)
 
     def memory_usage_mb(self) -> float | None:

@@ -3,6 +3,7 @@
 The plugin inspects metadata only. It never reads, changes, creates, or deletes
 user files, and it does not follow symbolic links.
 """
+
 from __future__ import annotations
 
 import os
@@ -87,10 +88,16 @@ class Plugin(BasePlugin):
         # directory entry with a symlink between enumeration and descent does
         # not redirect the scan outside the selected tree.
         required_flags = ("O_DIRECTORY", "O_NOFOLLOW")
-        if any(not hasattr(os, flag) for flag in required_flags) or not hasattr(os, "supports_dir_fd"):
-            raise RuntimeError("This platform lacks safe directory-relative file operations")
+        if any(not hasattr(os, flag) for flag in required_flags) or not hasattr(
+            os, "supports_dir_fd"
+        ):
+            raise RuntimeError(
+                "This platform lacks safe directory-relative file operations"
+            )
         if not (_SUPPORTS_OPEN_DIR_FD and _SUPPORTS_STAT_DIR_FD):
-            raise RuntimeError("This platform lacks safe directory-relative file operations")
+            raise RuntimeError(
+                "This platform lacks safe directory-relative file operations"
+            )
 
         findings: list[dict[str, str]] = []
         scanned_entries = 0
@@ -106,6 +113,14 @@ class Plugin(BasePlugin):
             raise ValueError("target directory cannot be accessed safely") from exc
         pending.append((root_fd, root, 0))
 
+        def close_directory_fd(fd):
+            nonlocal errors
+            try:
+                os.close(fd)
+            except OSError:
+                # Do not retry: the descriptor state may be ambiguous.
+                errors += 1
+
         try:
             while pending:
                 current_fd, current_path, depth = pending.pop()
@@ -120,7 +135,9 @@ class Plugin(BasePlugin):
                             display_path = current_path / name
 
                             try:
-                                info = os.stat(name, dir_fd=current_fd, follow_symlinks=False)
+                                info = os.stat(
+                                    name, dir_fd=current_fd, follow_symlinks=False
+                                )
                             except OSError:
                                 errors += 1
                                 continue
@@ -143,44 +160,63 @@ class Plugin(BasePlugin):
 
                             if permissions & stat.S_IWOTH:
                                 if not (is_directory and permissions & stat.S_ISVTX):
-                                    findings.append({
-                                        "code": "world_writable",
+                                    findings.append(
+                                        {
+                                            "code": "world_writable",
+                                            "severity": "high",
+                                            "path": str(display_path),
+                                            "permissions": format(permissions, "04o"),
+                                            "message": "Entry is writable by all local users.",
+                                        }
+                                    )
+
+                            if (
+                                is_regular_file
+                                and sensitive
+                                and permissions & stat.S_IROTH
+                            ):
+                                findings.append(
+                                    {
+                                        "code": "sensitive_world_readable",
                                         "severity": "high",
                                         "path": str(display_path),
                                         "permissions": format(permissions, "04o"),
-                                        "message": "Entry is writable by all local users.",
-                                    })
-
-                            if is_regular_file and sensitive and permissions & stat.S_IROTH:
-                                findings.append({
-                                    "code": "sensitive_world_readable",
-                                    "severity": "high",
-                                    "path": str(display_path),
-                                    "permissions": format(permissions, "04o"),
-                                    "message": "Potentially sensitive file is readable by all local users.",
-                                })
+                                        "message": "Potentially sensitive file is readable by all local users.",
+                                    }
+                                )
 
                             if recursive and is_directory and depth < max_depth:
                                 child_fd = None
                                 try:
-                                    child_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
-                                    child_fd = os.open(name, child_flags, dir_fd=current_fd)
+                                    child_flags = (
+                                        os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+                                    )
+                                    child_fd = os.open(
+                                        name, child_flags, dir_fd=current_fd
+                                    )
                                     child_info = os.fstat(child_fd)
                                     # Confirm the opened object is the same directory
                                     # observed by the no-follow stat above.
-                                    if (child_info.st_dev, child_info.st_ino) != (info.st_dev, info.st_ino):
-                                        os.close(child_fd)
+                                    if (child_info.st_dev, child_info.st_ino) != (
+                                        info.st_dev,
+                                        info.st_ino,
+                                    ):
+                                        close_directory_fd(child_fd)
                                         child_fd = None
                                         errors += 1
                                         continue
                                     pending.append((child_fd, display_path, depth + 1))
                                 except OSError:
                                     if child_fd is not None:
-                                        os.close(child_fd)
+                                        close_directory_fd(child_fd)
                                     # A replacement symlink is safely rejected by
                                     # O_NOFOLLOW; count it as skipped when detectable.
                                     try:
-                                        latest = os.stat(name, dir_fd=current_fd, follow_symlinks=False)
+                                        latest = os.stat(
+                                            name,
+                                            dir_fd=current_fd,
+                                            follow_symlinks=False,
+                                        )
                                         if stat.S_ISLNK(latest.st_mode):
                                             skipped_symlinks += 1
                                         else:
@@ -190,17 +226,14 @@ class Plugin(BasePlugin):
                 except OSError:
                     errors += 1
                 finally:
-                    os.close(current_fd)
+                    close_directory_fd(current_fd)
                 if truncated:
                     break
         finally:
             # Close queued directory descriptors if the entry limit or an
             # unexpected exception leaves work unprocessed.
             for queued_fd, _queued_path, _queued_depth in pending:
-                try:
-                    os.close(queued_fd)
-                except OSError:
-                    pass
+                close_directory_fd(queued_fd)
 
         return {
             "plugin": "file_audit",

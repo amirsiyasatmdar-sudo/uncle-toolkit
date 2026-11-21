@@ -1,43 +1,44 @@
-# Web UI Backend
+# Local Web UI
 
-## Overview
+## Status and scope
 
-Uncle Toolkit currently provides a minimal local HTTP backend implemented
-with Python's standard-library `http.server` module.
-
-This is an early backend foundation, not a complete graphical dashboard.
-The only currently implemented endpoint is `/health`.
+The Uncle Toolkit Web UI is an early, minimal local HTTP backend foundation. It is not a complete graphical dashboard or a production web application. The current implementation uses Python's standard-library `http.server`; it does not require a third-party web framework.
 
 ## Requirements
 
-- Python 3
-- Access to the Uncle Toolkit repository
-- No third-party web framework is required
+- Python 3.
+- Access to the Uncle Toolkit repository.
+- No third-party web framework is required for this backend.
 
-## Running the server
+## Start the server
 
-From the repository root, run:
+From the repository root:
 
 ```bash
 python -m web.app
 ```
 
-The default address is:
+The default bind address is `127.0.0.1` and the default port is `8765`:
 
 ```text
 http://127.0.0.1:8765
 ```
 
-Press `Ctrl+C` to stop the server.
+The server can be started programmatically with a selected port:
 
-The default port is 8765. The port can also be selected programmatically
-using `run_server(port=YOUR_PORT)`.
+```python
+from web.app import run_server
 
-## Available endpoint
+run_server(port=8765)
+```
 
-### GET /health
+The implementation remains loopback-bound; choosing a different port does not make it suitable for network exposure.
 
-Returns:
+## Current endpoint
+
+### `GET /health`
+
+Returns JSON:
 
 ```json
 {
@@ -47,44 +48,42 @@ Returns:
 }
 ```
 
-`HEAD /health` returns the response headers without a response body.
+### `HEAD /health`
 
-GET and HEAD requests to unknown paths return `404 Not Found`.
-Unsupported HTTP methods return `405 Method Not Allowed`.
+Returns the response headers without a response body.
 
-## Request restrictions
+Unknown GET or HEAD paths return `404`. Methods other than GET and HEAD return `405`.
 
-The backend currently applies these restrictions:
+## Request validation and limits
+
+The current backend applies the following controls:
 
 - Binds only to `127.0.0.1`.
-- Validates the Host header.
-- Validates the Origin header when supplied.
-- Accepts only `same-origin` and `none` for Sec-Fetch-Site when supplied.
-- Rejects duplicate Host, Origin, and Sec-Fetch-Site headers.
-- Allows only GET and HEAD methods.
-- Uses a five-second socket timeout.
-- Limits each HTTP header line to 65,536 bytes.
-- Limits requests to 100 HTTP headers.
+- Validates the `Host` header.
+- Validates `Origin` when it is supplied.
+- Accepts only `same-origin` and `none` for a supplied `Sec-Fetch-Site` header.
+- Rejects duplicate `Host`, `Origin`, and `Sec-Fetch-Site` headers.
+- Accepts only GET and HEAD methods.
+- Applies a five-second socket timeout.
+- Limits an HTTP header line to 65,536 bytes.
+- Limits a request to 100 headers.
 - Disables request logging.
 
-## Operational limitations
+These checks reduce exposure but are not an authentication system.
 
-The server uses Python's synchronous `HTTPServer` and processes requests
-sequentially. A slow client can delay other requests until its timeout.
+## Architecture and operational limitations
+
+The backend uses a synchronous `HTTPServer` and processes requests sequentially. A slow client can delay other requests until the socket timeout is reached.
 
 The current implementation does not provide:
 
-- User authentication or accounts.
-- HTTPS/TLS.
+- User accounts or authentication.
+- HTTPS/TLS termination.
 - A graphical dashboard.
 - Database-backed sessions.
-- Protection against other local processes connecting to the service.
+- Protection against other processes running on the same device.
 
-Binding to loopback limits network exposure, but does not prevent other
-processes on the same device from connecting. Host and Origin validation
-are not substitutes for authentication.
-
-Do not expose this development backend to an untrusted network.
+Loopback binding does not prevent other local processes from connecting. Host and Origin validation are request-integrity checks, not proof of user identity or authorization. Do not expose this backend to an untrusted network or treat it as a hardened public-facing service.
 
 ## Tests
 
@@ -100,4 +99,4 @@ Run the complete test suite:
 python -m pytest -v
 ```
 
-Document test results only after running the tests successfully.
+Only report test results after the relevant command has actually completed successfully in the environment being described.

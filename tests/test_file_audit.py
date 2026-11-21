@@ -92,7 +92,9 @@ def test_rejects_symlink_as_scan_root(plugin, tmp_path):
         plugin.run(link)
 
 
-def test_rejects_directory_replaced_by_symlink_during_traversal(plugin, tmp_path, monkeypatch):
+def test_rejects_directory_replaced_by_symlink_during_traversal(
+    plugin, tmp_path, monkeypatch
+):
     import plugins.file_audit.plugin as file_audit_module
 
     root = tmp_path / "root"
@@ -122,3 +124,175 @@ def test_rejects_directory_replaced_by_symlink_during_traversal(plugin, tmp_path
     assert report["skipped_symlinks"] == 1
     assert report["findings_count"] == 0
     assert "OUTSIDE_SECRET" not in json.dumps(report)
+
+
+def test_closes_queued_directory_descriptors_when_scan_is_truncated(
+    plugin, tmp_path, monkeypatch
+):
+    import plugins.file_audit.plugin as file_audit_module
+
+    root = tmp_path / "root"
+    root.mkdir()
+
+    for name in ("child-a", "child-b", "child-c"):
+        (root / name).mkdir()
+
+    real_open = os.open
+    child_fds = []
+
+    def tracking_open(path, flags, *args, **kwargs):
+        fd = real_open(path, flags, *args, **kwargs)
+        if kwargs.get("dir_fd") is not None:
+            child_fds.append(fd)
+        return fd
+
+    monkeypatch.setattr(file_audit_module.os, "open", tracking_open)
+
+    report = plugin.run(root, recursive=True, max_entries=2)
+
+    assert report["truncated"] is True
+    assert report["scanned_entries"] == 2
+    assert len(child_fds) == 2
+
+    for fd in child_fds:
+        with pytest.raises(OSError):
+            os.fstat(fd)
+
+
+def test_closes_child_descriptor_when_directory_scan_fails(
+    plugin, tmp_path, monkeypatch
+):
+    import plugins.file_audit.plugin as file_audit_module
+
+    root = tmp_path / "root"
+    child = root / "child"
+    child.mkdir(parents=True)
+
+    real_scandir = os.scandir
+    real_open = os.open
+    child_fds = []
+
+    def tracking_open(path, flags, *args, **kwargs):
+        fd = real_open(path, flags, *args, **kwargs)
+        if kwargs.get("dir_fd") is not None:
+            child_fds.append(fd)
+        return fd
+
+    def failing_scandir(path):
+        if isinstance(path, int) and path in child_fds:
+            raise OSError("simulated directory scan failure")
+        return real_scandir(path)
+
+    monkeypatch.setattr(file_audit_module.os, "open", tracking_open)
+    monkeypatch.setattr(file_audit_module.os, "scandir", failing_scandir)
+
+    report = plugin.run(root, recursive=True)
+
+    assert len(child_fds) == 1
+    assert report["errors"] >= 1
+
+    with pytest.raises(OSError):
+        os.fstat(child_fds[0])
+
+
+def test_closes_remaining_descriptors_when_close_reports_error(
+    plugin, tmp_path, monkeypatch
+):
+    import plugins.file_audit.plugin as file_audit_module
+
+    root = tmp_path / "root"
+    root.mkdir()
+
+    for name in ("child-a", "child-b"):
+        (root / name).mkdir()
+
+    real_open = os.open
+    real_close = os.close
+    real_scandir = os.scandir
+    real_fstat = os.fstat
+
+    child_fds = []
+    root_fds = []
+    failed_once = False
+
+    def tracking_open(path, flags, *args, **kwargs):
+        fd = real_open(path, flags, *args, **kwargs)
+        if kwargs.get("dir_fd") is not None:
+            child_fds.append(fd)
+        else:
+            root_fds.append(fd)
+        return fd
+
+    def failing_scandir(path):
+        if isinstance(path, int) and path in child_fds:
+            raise OSError("simulated scandir failure")
+        return real_scandir(path)
+
+    def close_then_raise(fd):
+        nonlocal failed_once
+        real_close(fd)
+
+        if fd in child_fds and not failed_once:
+            failed_once = True
+            raise OSError("simulated close error")
+
+    monkeypatch.setattr(file_audit_module.os, "open", tracking_open)
+    monkeypatch.setattr(file_audit_module.os, "scandir", failing_scandir)
+    monkeypatch.setattr(file_audit_module.os, "close", close_then_raise)
+
+    report = plugin.run(root, recursive=True)
+
+    assert failed_once is True
+    assert len(child_fds) == 2
+    assert report["errors"] >= 1
+
+    for fd in root_fds + child_fds:
+        with pytest.raises(OSError):
+            real_fstat(fd)
+
+
+def test_inode_mismatch_and_close_error_count_as_two_independent_errors(
+    plugin, tmp_path, monkeypatch
+):
+    import plugins.file_audit.plugin as file_audit_module
+
+    root = tmp_path / "root"
+    (root / "child").mkdir(parents=True)
+
+    real_open = os.open
+    real_close = os.close
+    real_fstat = os.fstat
+    child_fds = []
+
+    def tracking_open(path, flags, *args, **kwargs):
+        fd = real_open(path, flags, *args, **kwargs)
+        if kwargs.get("dir_fd") is not None:
+            child_fds.append(fd)
+        return fd
+
+    def mismatching_fstat(fd):
+        result = real_fstat(fd)
+        if fd in child_fds:
+            values = list(result)
+            values[1] += 1
+            return os.stat_result(values)
+        return result
+
+    failed_close = False
+
+    def close_then_raise(fd):
+        nonlocal failed_close
+        real_close(fd)
+        if fd in child_fds and not failed_close:
+            failed_close = True
+            raise OSError("simulated close error")
+
+    monkeypatch.setattr(file_audit_module.os, "open", tracking_open)
+    monkeypatch.setattr(file_audit_module.os, "fstat", mismatching_fstat)
+    monkeypatch.setattr(file_audit_module.os, "close", close_then_raise)
+
+    report = plugin.run(root, recursive=True)
+
+    assert len(child_fds) == 1
+    assert failed_close is True
+    assert report["errors"] == 2
